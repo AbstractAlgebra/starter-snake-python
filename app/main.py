@@ -1,62 +1,49 @@
-import bottle
+
+import json
 import os
 import random
-import json
-import heapq
-import sys
-global direction
-global allNodes
+import bottle
+
+from api import ping_response, start_response, move_response, end_response
 
 @bottle.route('/')
-def static():
-    return "the server is running"
-
+def index():
+    return '''
+    Battlesnake documentation can be found at
+       <a href="https://docs.battlesnake.io">https://docs.battlesnake.io</a>.
+    '''
 
 @bottle.route('/static/<path:path>')
 def static(path):
+    """
+    Given a path, return the static file located relative
+    to the static folder.
+    This can be used to return the snake head URL in an API response.
+    """
     return bottle.static_file(path, root='static/')
 
+@bottle.post('/ping')
+def ping():
+    """
+    A keep-alive endpoint used to prevent cloud application platforms,
+    such as Heroku, from sleeping the application instance.
+    """
+    return ping_response()
 
 @bottle.post('/start')
 def start():
-    global direction
     data = bottle.request.json
-    #print bottle
-    #print "TEST"
-    game_id = data.get('game_id')
-    board_width = data.get('width')
-    board_height = data.get('height')
 
-    head_url = '%s://%s/static/head.png' % (
-        bottle.request.urlparts.scheme,
-        bottle.request.urlparts.netloc
-    )
+    """
+    TODO: If you intend to have a stateful snake AI,
+            initialize your snake state here using the
+            request's data if necessary.
+    """
+    print(json.dumps(data))
 
-    # TODO: Do things with data
+    color = "#00FF00"
 
-    return {
-        'color': '#00FF00',
-        'taunt': '{} ({}x{})'.format(game_id, board_width, board_height),
-        'head_url': head_url,
-        'name': 'dallas'
-    }
-
-def moveRight():
-    global direction
-    direction = 'right'
-
-def moveLeft():
-    global direction
-    direction = 'left'
-
-def moveUp():
-    global direction
-    direction = 'up'
-
-def moveDown():
-    global direction
-    direction = 'down'
-
+    return start_response(color)
 
 def neighbours(node):
     dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]]
@@ -181,6 +168,12 @@ def AStar(graph, start, goal):
     return came_from, cost_so_far
 @bottle.post('/move')
 def move():
+    data = bottle.request.json
+
+    """
+    TODO: Using the data from the endpoint request object, your
+            snake AI must choose a direction to move in.
+    """
     global data
     data = bottle.request.json
 
@@ -308,24 +301,33 @@ def move():
 
 
     if(currentPos[0] > prev[0]):
-        moveLeft()
+        direction = 'left'
     
     if(currentPos[0] < prev[0]):
-        moveRight()
+        direction = 'right'
     
     if(currentPos[1] > prev[1]):
-        moveUp()
+        direction = 'up'
     
     if(currentPos[1] < prev[1]):
-        moveDown()
+        direction = 'down'
 
 
     #print direction
-    return {
-        'move': direction,
-        'taunt': 'For the Horde!'
-    }
-#test
+    return move_response(direction)
+
+
+@bottle.post('/end')
+def end():
+    data = bottle.request.json
+
+    """
+    TODO: If your snake AI was stateful,
+        clean up any stateful objects here.
+    """
+    print(json.dumps(data))
+
+    return end_response()
 
 # Expose WSGI app (so gunicorn can find it)
 application = bottle.default_app()
@@ -335,4 +337,5 @@ if __name__ == '__main__':
         application,
         host=os.getenv('IP', '0.0.0.0'),
         port=os.getenv('PORT', '8080'),
-        debug = True)
+        debug=os.getenv('DEBUG', True)
+    )
